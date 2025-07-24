@@ -1,8 +1,8 @@
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
-using UnityEditor;
 using System.Collections;
+using System.Collections.Generic;
 
 public class Gameplay : MonoBehaviour
 {
@@ -27,6 +27,10 @@ public class Gameplay : MonoBehaviour
     private bool isPlayerTurn;
     private bool gameActive;
 
+    private int computerMinguess;
+    private int computerMaxguess;
+    private int lastComputerGuess;
+
     void InitializeUI()
     {
         submitButton.onClick.AddListener(SubmitGuess);
@@ -41,55 +45,63 @@ public class Gameplay : MonoBehaviour
         string input = guessInputField.text.Trim();
         if (string.IsNullOrEmpty(input)) return;
 
-        int guess;
-        if (!int.TryParse(input, out guess))
+        if (!int.TryParse(input, out int guess))
         {
             gameState.text += "Please enter a valid number.\n";
             return;
         }
+
         if (guess < minNumber || guess > maxNumber)
         {
-            gameState.text += $"Please enter a number between {minNumber} - {maxNumber}";
+            gameState.text += $"<sprite=6> Please enter a number between {minNumber} - {maxNumber}\n";
             return;
         }
-        ProcessGuess(guess, true);
+
         guessInputField.text = "";
+        ProcessGuess(guess, true);
     }
-    void ProcessGuess(int guess, bool isPlayerTurn)
+
+    void ProcessGuess(int guess, bool isPlayer)
     {
         currentAttemps++;
-        string PlayerName = isPlayerTurn ? "Player" : "Computer";
+        string playerName = isPlayer ? "Player" : "Computer";
 
-        gameLog.text += $"{PlayerName} guessed: {guess}\n";
+        gameLog.text += $"{playerName} guessed: {guess}\n";
 
         if (guess == targetNumber)
         {
-            //Win
-            gameLog.text += $"({PlayerName} got it right)\n";
+            gameLog.text += $"<sprite=\"Symbols\" index=23> {playerName} got it right!\n";
             EndGame();
         }
         else if (currentAttemps >= maxAttemps)
         {
-            //Lose
-            gameLog.text += $"(Game Over! The correct number was {targetNumber}\n";
+            gameLog.text += $"<sprite=6> Game Over! The correct number was {targetNumber}\n";
             EndGame();
         }
         else
         {
-            //Wrong guess - give hint
             string hint = guess < targetNumber ? "Too Low" : "Too High";
-            gameLog.text += $"{hint}\n";
+            gameLog.text += $"<sprite=\"Symbols\" index=24> {hint}\n";
 
-            //switch players
-            isPlayerTurn = !isPlayerTurn;
-            currentPlayer.text = isPlayerTurn ? "Player" : "Computer";
+            // Update range for computer
+            if (!isPlayer)
+            {
+                if (guess < targetNumber)
+                    computerMinguess = guess + 1;
+                else
+                    computerMaxguess = guess - 1;
+            }
+
+            // Switch turn
+            isPlayerTurn = !isPlayer;
+            currentPlayer.text = isPlayerTurn ? "Player's Turn" : "Computer's Turn";
             atttempsLeft.text = $"Attempts left: {maxAttemps - currentAttemps}";
 
             if (!isPlayerTurn)
             {
                 guessInputField.interactable = false;
                 submitButton.interactable = false;
-                StartCoroutine(ComputerTurn(guess < targetNumber));
+                StartCoroutine(ComputerTurn());
             }
             else
             {
@@ -101,12 +113,14 @@ public class Gameplay : MonoBehaviour
         }
     }
 
-    IEnumerator ComputerTurn(bool targetIsHigher)
+    IEnumerator ComputerTurn()
     {
-        yield return new WaitForSeconds(2f); // Wait to thinking
+        yield return new WaitForSeconds(1.5f);
+
         if (!gameActive) yield break;
-        int computerGuess = Random.Range(minNumber, maxNumber + 1);
-        ProcessGuess(computerGuess, false);
+
+        lastComputerGuess = (computerMinguess + computerMaxguess) / 2;
+        ProcessGuess(lastComputerGuess, false);
     }
 
     void EndGame()
@@ -126,29 +140,25 @@ public class Gameplay : MonoBehaviour
         isPlayerTurn = true;
         gameActive = true;
 
-        currentPlayer.text = "Player's turn";
+        currentPlayer.text = "Player's Turn";
         atttempsLeft.text = $"Attempts left: {maxAttemps}";
         gameLog.text = "=== Game Log ===\n";
         gameState.text = "Game In Progress";
 
+        guessInputField.text = "";
         guessInputField.interactable = true;
         submitButton.interactable = true;
-        guessInputField.text = "";
-
         guessInputField.Select();
         guessInputField.ActivateInputField();
+
+        computerMinguess = minNumber;
+        computerMaxguess = maxNumber;
+        lastComputerGuess = 0;
     }
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         InitializeUI();
         StartNewGame();
     }
-
-    // Update is called once per frame
-    void Update()
-    {
-
-    }
-} 
+}
